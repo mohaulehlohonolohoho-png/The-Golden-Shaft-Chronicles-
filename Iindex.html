@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Golden Shaft Chronicles</title>
+
+<style>
+* { box-sizing:border-box; }
+
+body {
+    margin:0;
+    background:#090d12;
+    color:white;
+    font-family:Arial,sans-serif;
+    overflow:hidden;
+}
+
+header {
+    padding:12px;
+    text-align:center;
+    background:#151d25;
+    border-bottom:2px solid #bd8b36;
+}
+
+header h2 {
+    margin:3px;
+    color:#e5b75d;
+    font-size:19px;
+}
+
+header p {
+    margin:4px;
+    font-size:11px;
+    color:#b9c1c9;
+}
+
+#hud {
+    display:flex;
+    justify-content:space-between;
+    padding:9px;
+    font-size:12px;
+    background:#101820;
+}
+
+#game {
+    display:block;
+    width:100%;
+    max-width:900px;
+    margin:auto;
+    background:#18231e;
+    image-rendering:pixelated;
+    touch-action:none;
+}
+
+#message {
+    text-align:center;
+    min-height:55px;
+    padding:10px;
+    color:#f1d69c;
+    background:#101820;
+    font-size:13px;
+}
+
+.controls {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 18px;
+    max-width:500px;
+    margin:auto;
+}
+
+.pad {
+    display:grid;
+    grid-template-columns:45px 45px 45px;
+    grid-template-rows:40px 40px;
+    gap:3px;
+}
+
+button {
+    background:#273744;
+    color:white;
+    border:1px solid #bd8b36;
+    border-radius:9px;
+    font-size:18px;
+    touch-action:none;
+}
+
+button:active {
+    background:#9c702d;
+}
+
+.up { grid-column:2; }
+.left { grid-column:1; grid-row:2; }
+.down { grid-column:2; grid-row:2; }
+.right { grid-column:3; grid-row:2; }
+
+#interact {
+    width:105px;
+    height:65px;
+    background:#755020;
+    font-size:13px;
+    font-weight:bold;
+}
+
+footer {
+    text-align:center;
+    color:#77838d;
+    font-size:10px;
+    padding:5px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>THE GOLDEN SHAFT CHRONICLES</h2>
+<p>BOOK ONE: THE WHISPERS OF TIKWE</p>
+</header>
+
+<div id="hud">
+<span id="chapter">CHAPTER 1</span>
+<span id="clues">Clues: 0 / 3</span>
+<span id="time">21:00 NIGHT</span>
+</div>
+
+<canvas id="game" width="800" height="450"></canvas>
+
+<div id="message">
+You arrive in Virginia. Something is watching from the darkness...
+</div>
+
+<div class="controls">
+
+<div class="pad">
+<button class="up" data-key="ArrowUp">▲</button>
+<button class="left" data-key="ArrowLeft">◀</button>
+<button class="down" data-key="ArrowDown">▼</button>
+<button class="right" data-key="ArrowRight">▶</button>
+</div>
+
+<button id="interact">INVESTIGATE</button>
+
+</div>
+
+<footer>
+PHENOMENAL GAMING PRESENTS | PHENOMENAL23
+</footer>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const message = document.getElementById("message");
+const cluesDisplay = document.getElementById("clues");
+
+let player = {
+    x:100,
+    y:220,
+    speed:3,
+    size:18
+};
+
+let keys = {};
+let collected = 0;
+let monsterVisible = false;
+let gameFinished = false;
+let frame = 0;
+
+const clues = [
+    {x:280,y:120,found:false,name:"An old mining helmet"},
+    {x:510,y:320,found:false,name:"A mysterious footprint"},
+    {x:680,y:170,found:false,name:"An ancient gold coin"}
+];
+
+const obstacles = [
+    {x:180,y:70,w:90,h:65},
+    {x:400,y:180,w:100,h:70},
+    {x:600,y:60,w:100,h:65},
+    {x:100,y:350,w:100,h:55}
+];
+
+function drawWorld() {
+
+    ctx.fillStyle="#24352a";
+    ctx.fillRect(0,0,800,450);
+
+    // Ground texture
+    for(let i=0;i<100;i++){
+        let x=(i*97)%800;
+        let y=(i*61)%450;
+        ctx.fillStyle=i%2?"#293c30":"#314334";
+        ctx.fillRect(x,y,3,3);
+    }
+
+    // Mining road
+    ctx.fillStyle="#62533c";
+    ctx.fillRect(0,185,800,100);
+
+    ctx.fillStyle="#79694b";
+    ctx.fillRect(0,192,800,3);
+    ctx.fillRect(0,275,800,3);
+
+    // Houses
+    obstacles.forEach((o,i)=>{
+        ctx.fillStyle="#57473b";
+        ctx.fillRect(o.x,o.y,o.w,o.h);
+
+        ctx.fillStyle="#302c29";
+        ctx.fillRect(o.x-8,o.y-12,o.w+16,18);
+
+        ctx.fillStyle="#d39a47";
+        ctx.fillRect(o.x+15,o.y+20,15,15);
+        ctx.fillRect(o.x+o.w-30,o.y+20,15,15);
+    });
+
+    // Street lamps
+    [60,360,740].forEach(x=>{
+        ctx.fillStyle="#181b19";
+        ctx.fillRect(x,145,5,45);
+
+        ctx.fillStyle="#e2bd64";
+        ctx.beginPath();
+        ctx.arc(x+2,143,9,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    // Mining entrance
+    ctx.fillStyle="#171817";
+    ctx.fillRect(690,350,90,75);
+
+    ctx.fillStyle="#a57b37";
+    ctx.fillRect(680,340,110,12);
+
+    ctx.fillStyle="#d4a44e";
+    ctx.font="12px Arial";
+    ctx.fillText("GOLD MINE",690,435);
+}
+
+function drawClues(){
+
+    clues.forEach(c=>{
+
+        if(c.found) return;
+
+        ctx.fillStyle="#f4c34f";
+        ctx.beginPath();
+        ctx.arc(c.x,c.y,9,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle="#fff1ad";
+        ctx.fillRect(c.x-2,c.y-2,4,4);
+
+    });
+
+}
+
+function drawPlayer(){
+
+    // Shadow
+    ctx.fillStyle="#101010";
+    ctx.beginPath();
+    ctx.ellipse(player.x,player.y+13,12,5,0,0,Math.PI*2);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle="#b17c43";
+    ctx.fillRect(player.x-9,player.y-5,18,21);
+
+    // Head
+    ctx.fillStyle="#c98c60";
+    ctx.beginPath();
+    ctx.arc(player.x,player.y-12,9,0,Math.PI*2);
+    ctx.fill();
+
+    // Hair
+    ctx.fillStyle="#17110e";
+    ctx.fillRect(player.x-8,player.y-21,16,6);
+
+    // Torch
+    ctx.fillStyle="#f6d46c";
+    ctx.fillRect(player.x+10,player.y-4,5,4);
+
+}
+
+function drawMonster(){
+
+    if(!monsterVisible) return;
+
+    let mx=player.x+100+Math.sin(frame/30)*30;
+    let my=player.y-65;
+
+    ctx.fillStyle="#08090a";
+
+    ctx.beginPath();
+    ctx.arc(mx,my,20,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillRect(mx-15,my+12,30,40);
+
+    ctx.fillStyle="#ff2020";
+    ctx.fillRect(mx-9,my-4,5,5);
+    ctx.fillRect(mx+5,my-4,5,5);
+
+}
+
+function drawDarkness(){
+
+    let gradient=ctx.createRadialGradient(
+        player.x,player.y,35,
+        player.x,player.y,260
+    );
+
+    gradient.addColorStop(0,"rgba(0,0,0,0)");
+    gradient.addColorStop(1,"rgba(0,0,0,0.78)");
+
+    ctx.fillStyle=gradient;
+    ctx.fillRect(0,0,800,450);
+
+}
+
+function update(){
+
+    if(gameFinished) return;
+
+    let oldX=player.x;
+    let oldY=player.y;
+
+    if(keys.ArrowUp || keys.w) player.y-=player.speed;
+    if(keys.ArrowDown || keys.s) player.y+=player.speed;
+    if(keys.ArrowLeft || keys.a) player.x-=player.speed;
+    if(keys.ArrowRight || keys.d) player.x+=player.speed;
+
+    player.x=Math.max(15,Math.min(785,player.x));
+    player.y=Math.max(25,Math.min(435,player.y));
+
+    // Obstacle collision
+    for(let o of obstacles){
+
+        if(
+            player.x+9>o.x &&
+            player.x-9<o.x+o.w &&
+            player.y+9>o.y &&
+            player.y-9<o.y+o.h
+        ){
+            player.x=oldX;
+            player.y=oldY;
+        }
+
+    }
+
+    frame++;
+}
+
+function investigate(){
+
+    if(gameFinished) return;
+
+    let nearby=null;
+
+    for(let c of clues){
+
+        let distance=Math.hypot(
+            player.x-c.x,
+            player.y-c.y
+        );
+
+        if(distance<45 && !c.found){
+            nearby=c;
+            break;
+        }
+    }
+
+    if(nearby){
+
+        nearby.found=true;
+        collected++;
+
+        cluesDisplay.textContent="Clues: "+collected+" / 3";
+
+        message.textContent="You discovered: "+nearby.name+"!";
+
+        if(collected===3){
+
+            monsterVisible=true;
+
+            message.textContent=
+            "The three clues reveal an ancient secret... Something has awakened!";
+
+            document.getElementById("chapter").textContent="CHAPTER 2";
+
+        }
+
+        return;
+    }
+
+    if(monsterVisible){
+
+        message.textContent=
+        "A pair of red eyes watches you. You hear a whisper: 'Tikwe...'";
+
+        return;
+    }
+
+    message.textContent=
+    "Nothing here... Explore the town and look for glowing clues.";
+
+}
+
+document.addEventListener("keydown",e=>{
+    keys[e.key]=true;
+
+    if(e.key===" " || e.key==="Enter"){
+        e.preventDefault();
+        investigate();
+    }
+});
+
+document.addEventListener("keyup",e=>{
+    keys[e.key]=false;
+});
+
+// Mobile touch controls
+document.querySelectorAll("[data-key]").forEach(button=>{
+
+    const key=button.dataset.key;
+
+    button.addEventListener("pointerdown",e=>{
+        e.preventDefault();
+        keys[key]=true;
+        button.setPointerCapture(e.pointerId);
+    });
+
+    ["pointerup","pointercancel","lostpointercapture"].forEach(event=>{
+        button.addEventListener(event,()=>{
+            keys[key]=false;
+        });
+    });
+
+});
+
+document.getElementById("interact")
+.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    investigate();
+});
+
+function gameLoop(){
+
+    update();
+
+    ctx.clearRect(0,0,800,450);
+
+    drawWorld();
+    drawClues();
+    drawPlayer();
+    drawMonster();
+    drawDarkness();
+
+    requestAnimationFrame(gameLoop);
+
+}
+
+gameLoop();
+
+</script>
+
+</body>
+  </html>
